@@ -9,6 +9,7 @@ import hydra
 import numpy as np
 import omegaconf
 import pytorch_lightning as pl
+import wandb
 from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning import Callback, seed_everything
 from pytorch_lightning.callbacks import (
@@ -18,8 +19,7 @@ from pytorch_lightning.callbacks import (
 )
 from pytorch_lightning.loggers import WandbLogger
 
-import wandb
-from diffcsp.common.utils import log_hyperparameters
+from flowmm.fromdeps.logging import log_hyperparameters
 from flowmm.model.eval_utils import register_omega_conf_resolvers
 from flowmm.model.model_pl import MaterialsRFMLitModule
 

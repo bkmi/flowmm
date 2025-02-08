@@ -3,7 +3,6 @@ channels:
   - nvidia
   - pytorch
   - conda-forge
-  - defaults
   - pyg
 dependencies:
   # Riemannian FM

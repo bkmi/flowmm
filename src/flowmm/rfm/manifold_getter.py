@@ -10,9 +10,9 @@ import numpy as np
 import torch
 from torch_geometric.utils import to_dense_batch
 
-from diffcsp.common.data_utils import lattice_params_to_matrix_torch
 from flowmm.cfg_utils import dataset_options
 from flowmm.data import NUM_ATOMIC_BITS, NUM_ATOMIC_TYPES
+from flowmm.fromdeps.data_utils import lattice_params_to_matrix_torch
 from flowmm.geometric_ import mask_2d_to_batch
 from flowmm.rfm.manifolds import (
     EuclideanWithLogProb,

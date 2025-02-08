@@ -17,10 +17,7 @@ from torch.func import jvp, vjp
 from torch_geometric.data import Data
 from torchmetrics import MeanMetric, MinMetric
 
-from diffcsp.common.data_utils import lattices_to_params_shape
-from manifm.ema import EMA
-from manifm.model_pl import ManifoldFMLitModule, div_fn, output_and_div
-from manifm.solvers import projx_integrator, projx_integrator_return_last
+from flowmm.fromdeps.data_utils import lattices_to_params_shape
 from flowmm.model.arch import CSPNet, ProjectedConjugatedCSPNet
 from flowmm.model.solvers import (
     projx_cond_integrator_return_last,
@@ -30,6 +27,9 @@ from flowmm.model.standardize import get_affine_stats
 from flowmm.rfm.manifold_getter import Dims, ManifoldGetter
 from flowmm.rfm.manifolds.spd import SPDGivenN, SPDNonIsotropicRandom
 from flowmm.rfm.vmap import VMapManifolds
+from manifm.ema import EMA
+from manifm.model_pl import ManifoldFMLitModule, div_fn, output_and_div
+from manifm.solvers import projx_integrator, projx_integrator_return_last
 
 
 def output_and_div(
@@ -240,7 +240,9 @@ class MaterialsRFMLitModule(ManifoldFMLitModule):
         num_atoms = self.manifold_getter._get_num_atoms(mask_a_or_f)
 
         if x0 is None:
-            assert not self.cfg.base_distribution_from_data, "Need to sample from the base distribution"
+            assert (
+                not self.cfg.base_distribution_from_data
+            ), "Need to sample from the base distribution"
             x0 = manifold.random(*shape, device=node2graph.device)
         else:
             x0 = x0.to(device=node2graph.device)
@@ -283,7 +285,9 @@ class MaterialsRFMLitModule(ManifoldFMLitModule):
         num_atoms = self.manifold_getter._get_num_atoms(mask_a_or_f)
 
         if x0 is None:
-            assert not self.cfg.base_distribution_from_data, "Need to sample from the base distribution"
+            assert (
+                not self.cfg.base_distribution_from_data
+            ), "Need to sample from the base distribution"
             x0 = manifold.random(*shape, device=node2graph.device)
         else:
             x0 = x0.to(device=node2graph.device)
@@ -896,9 +900,7 @@ class MaterialsRFMLitModule(ManifoldFMLitModule):
             )
             norms = {"norms_a": norms_a, "norms_f": norms_f, "norms_l": norms_l}
         else:
-            recon = self.gen_sample(
-                batch.batch, dim_coords, num_steps=num_steps, x0=x0
-            )
+            recon = self.gen_sample(batch.batch, dim_coords, num_steps=num_steps, x0=x0)
             norms = {}
         atom_types, frac_coords, lattices = self.manifold_getter.flatrep_to_crystal(
             recon, dims, mask_a_or_f

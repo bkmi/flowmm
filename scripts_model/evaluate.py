@@ -9,12 +9,11 @@ from typing import Any, Literal, Sequence
 import click
 import pytorch_lightning as pl
 import torch
+import wandb
 from pytorch_lightning.callbacks import BasePredictionWriter
-from pytorch_lightning.loggers.wandb import WandbLogger
 from torch_geometric.data import Batch, Data, DataLoader
 
-import wandb
-from diffcsp.script_utils import GenDataset
+from flowmm.fromdeps.script_utils import GenDataset
 from flowmm.model.eval_utils import (
     CSPDataset,
     get_loaders,

@@ -18,16 +18,15 @@ from pymatgen.core.lattice import Lattice
 from pymatgen.core.structure import Structure
 from torch_geometric.data import Data
 
-from diffcsp.eval_utils import (
+from flowmm.data import NUM_ATOMIC_BITS, NUM_ATOMIC_TYPES
+from flowmm.fromdeps.eval_utils import (
     get_crystals_list,
     load_data,
     smact_validity,
     structure_validity,
 )
-from flowmm.data import NUM_ATOMIC_BITS, NUM_ATOMIC_TYPES
 from flowmm.joblib_ import joblib_map
 from flowmm.rfm.manifold_getter import ManifoldGetter
-from flowmm.rfm.manifolds.analog_bits import analog_bits_to_int
 
 CrysArrayListType = list[dict[str, np.ndarray]]
 
