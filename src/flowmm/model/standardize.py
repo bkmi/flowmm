@@ -92,7 +92,7 @@ def compute_affine_stats(
     lattice_manifold: lattice_manifold_types,
     epochs: int = 5,
     analog_bits_scale: float = 1.0,
-):
+) -> dict[str, torch.Tensor]:
     from flowmm.cfg_utils import init_loaders
     from flowmm.rfm.manifold_getter import ManifoldGetter
 
@@ -107,7 +107,6 @@ def compute_affine_stats(
     )
 
     inited = False
-
     for _ in tqdm(range(epochs)):
         for batch in tqdm(train_loader):
             (

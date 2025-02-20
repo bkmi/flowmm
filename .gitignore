@@ -18,6 +18,16 @@ mp_02072023/
 hps/
 final/
 cond-hp-sweep/
+data/llm_mp20_alex/*.csv
+data/llm_mp20_alex/*.pkl
+data/llm_mp20_alex/*.pt
+data/llm_osc/*.csv
+data/llm_osc/*.pkl
+data/llm_osc/*.pt
+slurm/
+output/
+data/anuroop_llm_mp20_alex
+data/anuroop_llm_osc
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
