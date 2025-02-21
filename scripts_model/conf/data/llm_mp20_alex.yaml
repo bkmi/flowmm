@@ -59,21 +59,7 @@ datamodule:
         preprocess_workers: ${data.preprocess_workers}
         read_csv: False
 
-    test:
-      - _target_: flowmm.data.dataset.CrystDataset
-        name: Formation energy test
-        path: ${data.root_path}/test.csv  # THESE ARE PLACEHOLDERS
-        save_path: ${data.root_path}/test_ori.pt
-        prop: ${data.prop}
-        niggli: ${data.niggli}
-        primitive: ${data.primitive}
-        graph_method: ${data.graph_method}
-        tolerance: ${data.tolerance}
-        use_space_group: ${data.use_space_group}
-        use_pos_index: ${data.use_pos_index}
-        lattice_scale_method: ${data.lattice_scale_method}
-        preprocess_workers: ${data.preprocess_workers}
-        read_csv: False
+    test: null
 
   num_workers:
     train: 5

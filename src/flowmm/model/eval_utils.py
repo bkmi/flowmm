@@ -10,13 +10,13 @@ from typing import Any, Dict, Sequence, Union
 
 import hydra
 import torch
+import wandb
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import Dataset
 from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
 
 import flowmm
-import wandb
 from flowmm.data import NUM_ATOMIC_BITS, NUM_ATOMIC_TYPES
 
 
@@ -158,9 +158,7 @@ def get_loaders(
     cfg: DictConfig,
     job_directory: Path | str | None = None,
 ) -> tuple[DataLoader, DataLoader, DataLoader]:
-    datamodule = hydra.utils.instantiate(
-        cfg.data.datamodule, _recursive_=False, scaler_path=job_directory
-    )
+    datamodule = hydra.utils.instantiate(cfg.data.datamodule, _recursive_=False)
     datamodule.setup()
     train_loader = datamodule.train_dataloader(shuffle=False)
     val_loader = datamodule.val_dataloader()[0]

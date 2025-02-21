@@ -1,6 +1,6 @@
-dataset_name: llm_osc
+dataset_name: llm_mp20_alex_abridged
 dim_coords: 3
-root_path: ${oc.env:PROJECT_ROOT}/data/llm_osc
+root_path: ${oc.env:PROJECT_ROOT}/data/llm_mp20_alex_abridged
 prop: formation_energy_per_atom
 num_targets: 1
 # prop: scaled_lattice
@@ -13,7 +13,7 @@ preprocess_workers: 30
 readout: mean
 max_atoms: 20
 otf_graph: false
-eval_model_name: llm_osc
+eval_model_name: llm_mp20_alex_abridged
 tolerance: 0.1
 
 use_space_group: false
@@ -30,7 +30,7 @@ datamodule:
     train:
       _target_: flowmm.data.dataset.CrystDataset
       name: Formation energy train
-      path: ${data.root_path}/train_t1.5.csv
+      path: ${data.root_path}/train.csv
       save_path: ${data.root_path}/train_ori.pt
       prop: ${data.prop}
       niggli: ${data.niggli}
@@ -46,7 +46,7 @@ datamodule:
     val:
       - _target_: flowmm.data.dataset.CrystDataset
         name: Formation energy val
-        path: ${data.root_path}/val_t1.5.csv  # THESE ARE PLACEHOLDERS
+        path: ${data.root_path}/val.csv  # THESE ARE PLACEHOLDERS
         save_path: ${data.root_path}/val_ori.pt
         prop: ${data.prop}
         niggli: ${data.niggli}

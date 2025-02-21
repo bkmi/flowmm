@@ -1199,56 +1199,6 @@ def min_distance_sqr_pbc(
     return return_list[0] if len(return_list) == 1 else return_list
 
 
-class StandardScalerTorch(object):
-    """Normalizes the targets of a dataset."""
-
-    def __init__(self, means=None, stds=None):
-        self.means = means
-        self.stds = stds
-
-    def fit(self, X):
-        if isinstance(X, torch.Tensor):
-            X = X.clone().detach()
-        else:
-            X = torch.tensor(X, dtype=torch.float)
-        self.means = torch.mean(X, dim=0)
-        # https://github.com/pytorch/pytorch/issues/29372
-        self.stds = torch.std(X, dim=0, unbiased=False) + EPSILON
-
-    def transform(self, X):
-        X = torch.tensor(X, dtype=torch.float)
-        return (X - self.means) / self.stds
-
-    def inverse_transform(self, X):
-        X = torch.tensor(X, dtype=torch.float)
-        return X * self.stds + self.means
-
-    def match_device(self, tensor):
-        if self.means.device != tensor.device:
-            self.means = self.means.to(tensor.device)
-            self.stds = self.stds.to(tensor.device)
-
-    def copy(self):
-        return StandardScalerTorch(
-            means=self.means.clone().detach(), stds=self.stds.clone().detach()
-        )
-
-    def __repr__(self) -> str:
-        return (
-            f"{self.__class__.__name__}("
-            f"means: {self.means.tolist()}, "
-            f"stds: {self.stds.tolist()})"
-        )
-
-
-def get_scaler_from_data_list(data_list, key):
-    dl = np.asarray([d[key] for d in data_list])
-    targets = torch.from_numpy(dl)
-    scaler = StandardScalerTorch()
-    scaler.fit(targets)
-    return scaler
-
-
 def process_one(
     row,
     niggli,
@@ -1375,37 +1325,6 @@ def preprocess_tensors(crystal_array_list, niggli, primitive, graph_method):
     return ordered_results
 
 
-def add_scaled_lattice_prop(data_list, lattice_scale_method):
-    for dict in data_list:
-        graph_arrays = dict["graph_arrays"]
-        # the indexes are brittle if more objects are returned
-        lengths = graph_arrays[2]
-        angles = graph_arrays[3]
-        num_atoms = graph_arrays[-1]
-        assert lengths.shape[0] == angles.shape[0] == 3
-        assert isinstance(num_atoms, int)
-
-        if lattice_scale_method == "scale_length":
-            lengths = lengths / float(num_atoms) ** (1 / 3)
-
-        dict["scaled_lattice"] = np.concatenate([lengths, angles])
-
-        if "graph_arrays_initial" in dict:
-            graph_arrays_initial = dict["graph_arrays_initial"]
-            lengths_initial = graph_arrays_initial[2]
-            angles_initial = graph_arrays_initial[3]
-            num_atoms_initial = graph_arrays_initial[-1]
-            assert lengths_initial.shape[0] == angles_initial.shape[0] == 3
-            assert isinstance(num_atoms_initial, int)
-
-            if lattice_scale_method == "scale_length":
-                lengths_initial = lengths_initial / float(num_atoms_initial) ** (1 / 3)
-
-            dict["scaled_lattice_initial"] = np.concatenate(
-                [lengths_initial, angles_initial]
-            )
-
-
 def mard(targets, preds):
     """Mean absolute relative difference."""
     assert torch.all(targets > 0.0)
@@ -1431,67 +1350,3 @@ def batch_accuracy_precision_recall(pred_edge_probs, edge_overlap_mask, num_bond
         start_idx = start_idx + num_bond
 
     return np.mean(accuracies), np.mean(precisions), np.mean(recalls)
-
-
-class StandardScaler:
-    """A :class:`StandardScaler` normalizes the features of a dataset.
-    When it is fit on a dataset, the :class:`StandardScaler` learns the
-        mean and standard deviation across the 0th axis.
-    When transforming a dataset, the :class:`StandardScaler` subtracts the
-        means and divides by the standard deviations.
-    """
-
-    def __init__(self, means=None, stds=None, replace_nan_token=None):
-        """
-        :param means: An optional 1D numpy array of precomputed means.
-        :param stds: An optional 1D numpy array of precomputed standard deviations.
-        :param replace_nan_token: A token to use to replace NaN entries in the features.
-        """
-        self.means = means
-        self.stds = stds
-        self.replace_nan_token = replace_nan_token
-
-    def fit(self, X):
-        """
-        Learns means and standard deviations across the 0th axis of the data :code:`X`.
-        :param X: A list of lists of floats (or None).
-        :return: The fitted :class:`StandardScaler` (self).
-        """
-        X = np.array(X).astype(float)
-        self.means = np.nanmean(X, axis=0)
-        self.stds = np.nanstd(X, axis=0)
-        self.means = np.where(
-            np.isnan(self.means), np.zeros(self.means.shape), self.means
-        )
-        self.stds = np.where(np.isnan(self.stds), np.ones(self.stds.shape), self.stds)
-        self.stds = np.where(self.stds == 0, np.ones(self.stds.shape), self.stds)
-
-        return self
-
-    def transform(self, X):
-        """
-        Transforms the data by subtracting the means and dividing by the standard deviations.
-        :param X: A list of lists of floats (or None).
-        :return: The transformed data with NaNs replaced by :code:`self.replace_nan_token`.
-        """
-        X = np.array(X).astype(float)
-        transformed_with_nan = (X - self.means) / self.stds
-        transformed_with_none = np.where(
-            np.isnan(transformed_with_nan), self.replace_nan_token, transformed_with_nan
-        )
-
-        return transformed_with_none
-
-    def inverse_transform(self, X):
-        """
-        Performs the inverse transformation by multiplying by the standard deviations and adding the means.
-        :param X: A list of lists of floats.
-        :return: The inverse transformed data with NaNs replaced by :code:`self.replace_nan_token`.
-        """
-        X = np.array(X).astype(float)
-        transformed_with_nan = X * self.stds + self.means
-        transformed_with_none = np.where(
-            np.isnan(transformed_with_nan), self.replace_nan_token, transformed_with_nan
-        )
-
-        return transformed_with_none

@@ -1,11 +1,18 @@
+import multiprocessing
+import multiprocessing.pool
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
+from typing import Any, Callable
 
 import pandas as pd
 import torch
-from p_tqdm import p_umap
+from tqdm import trange
 
 from flowmm.common.data_utils import process_one
+
+
+def process_one_star(args):
+    return process_one(*args)
 
 
 def main(args: Namespace) -> None:
@@ -16,17 +23,37 @@ def main(args: Namespace) -> None:
     df = df.iloc[args.start_ind : args.end_ind]
     print("length of dataframe portion", len(df))
 
-    unordered_results = p_umap(
-        process_one,
-        [df.iloc[idx] for idx in range(len(df))],
-        [args.niggli] * len(df),
-        [args.primitive] * len(df),
-        [args.graph_method] * len(df),
-        [[args.prop]] * len(df),  # the list is really nested
-        [args.use_space_group] * len(df),
-        [args.tolerance] * len(df),
-        num_cpus=args.workers,
-    )
+    with multiprocessing.Pool(processes=args.workers) as pool:
+        argss = [
+            (*elm,)
+            for elm in zip(
+                [df.iloc[idx] for idx in range(len(df))],
+                [args.niggli] * len(df),
+                [args.primitive] * len(df),
+                [args.graph_method] * len(df),
+                [[args.prop]] * len(df),  # the list is actually nested!
+                [args.use_space_group] * len(df),
+                [args.tolerance] * len(df),
+            )
+        ]
+        unordered_results = []
+        work = pool.imap_unordered(func=process_one_star, iterable=argss)
+        for _ in trange(len(argss)):
+            try:
+                unordered_results.append(work.next(timeout=args.timeout))
+            except multiprocessing.TimeoutError:
+                continue
+    # unordered_results = p_umap(
+    #     process_one,
+    #     [df.iloc[idx] for idx in range(len(df))],
+    #     [args.niggli] * len(df),
+    #     [args.primitive] * len(df),
+    #     [args.graph_method] * len(df),
+    #     [[args.prop]] * len(df),  # the list is really nested
+    #     [args.use_space_group] * len(df),
+    #     [args.tolerance] * len(df),
+    #     num_cpus=args.workers,
+    # )
 
     # filter bad cifs
     filtered_unordered_results = []
@@ -49,6 +76,7 @@ if __name__ == "__main__":
     parser.add_argument("csv", type=Path, help="target csv containing cif files")
     parser.add_argument("save", type=Path, help="cache")
     parser.add_argument("--workers", type=int, required=True)
+    parser.add_argument("--timeout", type=int, default=180)
     parser.add_argument("--start_ind", type=int, default=0)
     parser.add_argument(
         "--end_ind",

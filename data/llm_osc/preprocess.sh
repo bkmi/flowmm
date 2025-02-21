@@ -49,7 +49,7 @@ inds=(
     1032151
     1054589
     1077027
-    1099465
+    1099467  # must increase this by a little from the actual amount
 )
 max_length=${#inds[@]}
 max_length=$(echo "l($max_length)/l(10)" | bc -l)
@@ -69,7 +69,7 @@ for ((i=0; i<${#inds[@]}-1; i++)); do
     CMD="/home/bkmi/micromamba/envs/flowmm/bin/python \
         /home/bkmi/flowmm/src/flowmm/common/manual_preprocess.py \
         /home/bkmi/flowmm/data/llm_osc/train_t1.5.csv \
-        /home/bkmi/flowmm/data/llm_osc/train_t1.5${padded_index}.pkl \
+        /home/bkmi/flowmm/data/llm_osc/train_t1.5_${padded_index}.pkl \
         --workers 70 \
         --start_ind ${start} \
         --end_ind ${end}"

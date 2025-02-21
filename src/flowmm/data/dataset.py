@@ -7,11 +7,7 @@ from omegaconf import ValueNode
 from torch.utils.data import Dataset
 from torch_geometric.data import Data
 
-from flowmm.common.data_utils import (
-    add_scaled_lattice_prop,
-    preprocess,
-    preprocess_tensors,
-)
+from flowmm.common.data_utils import preprocess, preprocess_tensors
 
 
 class CrystDataset(Dataset):
@@ -34,7 +30,7 @@ class CrystDataset(Dataset):
         super().__init__()
         self.path = path
         self.name = name
-        if not kwargs.get("read_csv", True):
+        if kwargs.get("read_csv", True):
             self.df = pd.read_csv(path)
         self.prop = prop
         self.niggli = niggli
@@ -47,14 +43,13 @@ class CrystDataset(Dataset):
 
         self.preprocess(save_path, preprocess_workers, prop)
 
-        add_scaled_lattice_prop(self.cached_data, lattice_scale_method)
-        self.lattice_scaler = None
-        self.scaler = None
-
     def preprocess(self, save_path, preprocess_workers, prop):
         if os.path.exists(save_path):
+            print("loading from cache...")
             self.cached_data = torch.load(save_path)
+            print("loaded!")
         else:
+            print("no cache, preprocessing...")
             cached_data = preprocess(
                 self.path,
                 preprocess_workers,
@@ -67,6 +62,7 @@ class CrystDataset(Dataset):
             )
             torch.save(cached_data, save_path)
             self.cached_data = cached_data
+            print("preprocessed!")
 
     def __len__(self) -> int:
         return len(self.cached_data)
@@ -74,8 +70,6 @@ class CrystDataset(Dataset):
     def __getitem__(self, index):
         data_dict = self.cached_data[index]
 
-        # scaler is set in DataModule set stage
-        prop = self.scaler.transform(data_dict[self.prop])
         (
             frac_coords,
             atom_types,
@@ -101,7 +95,6 @@ class CrystDataset(Dataset):
             num_atoms=num_atoms,
             num_bonds=edge_indices.shape[0],
             num_nodes=num_atoms,  # special attribute used for batching in pytorch geometric
-            y=prop.view(1, -1),
         )
 
         if "graph_arrays_initial" in data_dict:
@@ -167,10 +160,6 @@ class TensorCrystDataset(Dataset):
             primitive=self.primitive,
             graph_method=self.graph_method,
         )
-
-        add_scaled_lattice_prop(self.cached_data, lattice_scale_method)
-        self.lattice_scaler = None
-        self.scaler = None
 
     def __len__(self) -> int:
         return len(self.cached_data)
