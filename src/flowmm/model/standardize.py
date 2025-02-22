@@ -387,7 +387,7 @@ if __name__ == "__main__":
                 with open(file, "w") as f:
                     yaml.dump({k: v.tolist() for k, v in stats.items()}, f)
 
-                spd_riemanian_geo
+                # spd_riemanian_geo
                 stats = compute_affine_stats(
                     dataset=dataset,
                     collect_stats_on=collect_stats_on,
