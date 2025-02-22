@@ -6,7 +6,7 @@ import functools
 import os
 from glob import glob
 from pathlib import Path
-from typing import Any, Dict, Sequence, Union
+from typing import Any, Dict, Optional, Sequence, Union
 
 import hydra
 import torch
@@ -156,13 +156,15 @@ def load_model(
 
 def get_loaders(
     cfg: DictConfig,
-    job_directory: Path | str | None = None,
-) -> tuple[DataLoader, DataLoader, DataLoader]:
+) -> tuple[DataLoader, DataLoader, Optional[DataLoader]]:
     datamodule = hydra.utils.instantiate(cfg.data.datamodule, _recursive_=False)
     datamodule.setup()
     train_loader = datamodule.train_dataloader(shuffle=False)
     val_loader = datamodule.val_dataloader()[0]
-    test_loader = datamodule.test_dataloader()[0]
+    if cfg.data.datamodule.datasets.test is not None:
+        test_loader = datamodule.test_dataloader()[0]
+    else:
+        test_loader = None
     return train_loader, val_loader, test_loader
 
 

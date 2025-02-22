@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 
 import torch
 from omegaconf import OmegaConf
@@ -92,11 +92,26 @@ def compute_affine_stats(
     lattice_manifold: lattice_manifold_types,
     epochs: int = 5,
     analog_bits_scale: float = 1.0,
+    max_batch_per_epoch: Optional[int] = None,
 ) -> dict[str, torch.Tensor]:
-    from flowmm.cfg_utils import init_loaders
+    import hydra
+
+    from flowmm.cfg_utils import init_cfg
     from flowmm.rfm.manifold_getter import ManifoldGetter
 
-    train_loader, *_ = init_loaders(dataset=dataset, batch_size=8192)
+    batch_size = 8192
+    overrides = [f"data={dataset}"]
+    overrides.extend(
+        [
+            f"data.datamodule.batch_size.train={batch_size}",
+            f"data.datamodule.batch_size.val={batch_size}",
+            f"data.datamodule.batch_size.test={batch_size}",
+        ]
+    )
+    cfg = init_cfg(overrides=overrides)
+    datamodule = hydra.utils.instantiate(cfg.data.datamodule, _recursive_=False)
+    datamodule.setup()
+    train_loader = datamodule.train_dataloader(shuffle=True)
 
     manifold_getter = ManifoldGetter(
         atom_type_manifold=atom_type_manifold,
@@ -108,13 +123,13 @@ def compute_affine_stats(
 
     inited = False
     for _ in tqdm(range(epochs)):
-        for batch in tqdm(train_loader):
+        for i, batch in enumerate(tqdm(train_loader)):
             (
                 x1,
                 manifold,
-                a_manifold,
-                f_manifold,
-                l_manifold,
+                _,
+                _,
+                _,
                 dims,
                 mask_a_or_f,
             ) = manifold_getter(
@@ -178,6 +193,8 @@ def compute_affine_stats(
             print(
                 f"{aspa_x_t.mean=}, {aspa_x_t.std=}; {aspa_u_t.mean=}, {aspa_u_t.std=}"
             )
+            if max_batch_per_epoch is not None and i > max_batch_per_epoch:
+                break
 
     return {
         "x_t_mean": aspa_x_t.mean,
@@ -234,7 +251,16 @@ if __name__ == "__main__":
 
     # calculate the stats of each dataset
     for dataset in tqdm(list(dataset_options.__args__)):
-        for collect_stats_on in collect_stats_on_options.__args__:
+        if "llm" in dataset:
+            kwargs = dict(
+                max_batch_per_epoch=25,
+                epochs=1,
+            )
+        else:
+            kwargs = {}
+
+        # for collect_stats_on in collect_stats_on_options.__args__:
+        for collect_stats_on in ["lattice"]:
             # if collect_stats_on == "atom":
             #     pass  # categorical are not standardized
 
@@ -246,6 +272,7 @@ if __name__ == "__main__":
                     atom_type_manifold="null_manifold",
                     coord_manifold="flat_torus_01",
                     lattice_manifold="non_symmetric",
+                    **kwargs,
                 )
                 # since translation is removed from the geodesic
                 stats["u_t_mean"] = torch.zeros_like(stats["u_t_mean"])
@@ -268,6 +295,7 @@ if __name__ == "__main__":
                     atom_type_manifold="null_manifold",
                     coord_manifold="flat_torus_01_normal",
                     lattice_manifold="non_symmetric",
+                    **kwargs,
                 )
                 # since translation is removed from the geodesic
                 stats["u_t_mean"] = torch.zeros_like(stats["u_t_mean"])
@@ -290,6 +318,7 @@ if __name__ == "__main__":
                     atom_type_manifold="null_manifold",
                     coord_manifold="flat_torus_01_fixfirst",
                     lattice_manifold="non_symmetric",
+                    **kwargs,
                 )
                 # since translation is removed from the geodesic
                 stats["u_t_mean"] = torch.zeros_like(stats["u_t_mean"])
@@ -310,6 +339,7 @@ if __name__ == "__main__":
                     atom_type_manifold="null_manifold",
                     coord_manifold="flat_torus_01_fixfirst_normal",
                     lattice_manifold="non_symmetric",
+                    **kwargs,
                 )
                 # since translation is removed from the geodesic
                 stats["u_t_mean"] = torch.zeros_like(stats["u_t_mean"])
@@ -348,6 +378,7 @@ if __name__ == "__main__":
                     atom_type_manifold="null_manifold",
                     coord_manifold="flat_torus_01_fixfirst",
                     lattice_manifold="spd_euclidean_geo",
+                    **kwargs,
                 )
                 file = Path(__file__).parent / get_affine_stats_filename(
                     dataset, "spd_euclidean_geo"
@@ -356,13 +387,14 @@ if __name__ == "__main__":
                 with open(file, "w") as f:
                     yaml.dump({k: v.tolist() for k, v in stats.items()}, f)
 
-                # spd_riemanian_geo
+                spd_riemanian_geo
                 stats = compute_affine_stats(
                     dataset=dataset,
                     collect_stats_on=collect_stats_on,
                     atom_type_manifold="null_manifold",
                     coord_manifold="flat_torus_01_fixfirst",
                     lattice_manifold="spd_riemanian_geo",
+                    **kwargs,
                 )
                 file = Path(__file__).parent / get_affine_stats_filename(
                     dataset, "spd_riemanian_geo"
@@ -378,6 +410,7 @@ if __name__ == "__main__":
                     atom_type_manifold="null_manifold",
                     coord_manifold="flat_torus_01_fixfirst",
                     lattice_manifold="lattice_params",
+                    **kwargs,
                 )
 
                 file = Path(__file__).parent / get_affine_stats_filename(
@@ -394,6 +427,7 @@ if __name__ == "__main__":
                     atom_type_manifold="null_manifold",
                     coord_manifold="flat_torus_01_fixfirst",
                     lattice_manifold="lattice_params_normal_base",
+                    **kwargs,
                 )
 
                 file = Path(__file__).parent / get_affine_stats_filename(

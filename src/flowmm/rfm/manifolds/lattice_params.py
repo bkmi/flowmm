@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from functools import cache
 from pathlib import Path
+from typing import Optional
 
 import torch
 from geoopt import Euclidean
@@ -337,13 +338,32 @@ def get_lattice_params_stats(
 
 
 def compute_lattice_params_stats(
-    dataset: dataset_options,
+    dataset: dataset_options, max_batches: Optional[int] = None
 ) -> LatticeParamsStats:
-    train_loader, *_ = init_loaders(dataset=dataset)
+    import hydra
+
+    from flowmm.cfg_utils import init_cfg
+
+    batch_size = 8192
+    overrides = [f"data={dataset}"]
+    overrides.extend(
+        [
+            f"data.datamodule.batch_size.train={batch_size}",
+            f"data.datamodule.batch_size.val={batch_size}",
+            f"data.datamodule.batch_size.test={batch_size}",
+        ]
+    )
+    cfg = init_cfg(overrides=overrides)
+    datamodule = hydra.utils.instantiate(cfg.data.datamodule, _recursive_=False)
+    datamodule.setup()
+    train_loader = datamodule.train_dataloader(shuffle=True)
+
     lengths, angles = [], []
-    for batch in train_loader:
+    for i, batch in enumerate(train_loader):
         lengths.append(batch.lengths)
         angles.append(batch.angles)
+        if max_batches is not None and i > max_batches:
+            break
     lengths = torch.cat(lengths, dim=0)
     angles = torch.cat(angles, dim=0)
     lp = LatticeParams()
@@ -373,7 +393,7 @@ if __name__ == "__main__":
         pbar = tqdm(list(dataset_options.__args__))
         for dataset in pbar:
             pbar.set_description(f"{dataset=}")
-            lattice_params_stats = compute_lattice_params_stats(dataset)
+            lattice_params_stats = compute_lattice_params_stats(dataset, max_batches=25)
             stats[dataset] = {
                 k: v.cpu().tolist() for k, v in asdict(lattice_params_stats).items()
             }
