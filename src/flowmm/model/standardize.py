@@ -259,8 +259,7 @@ if __name__ == "__main__":
         else:
             kwargs = {}
 
-        # for collect_stats_on in collect_stats_on_options.__args__:
-        for collect_stats_on in ["lattice"]:
+        for collect_stats_on in collect_stats_on_options.__args__:
             # if collect_stats_on == "atom":
             #     pass  # categorical are not standardized
 

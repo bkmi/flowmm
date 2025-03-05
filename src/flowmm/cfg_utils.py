@@ -18,7 +18,7 @@ dataset_options = Literal[
     "mpts_52",
     "perov",
     "mp_20_llama",
-    # "llm_mp20_alex",
+    "llm_mp20_alex",
     "llm_mp20_alex_abridged",
     "llm_osc",
 ]

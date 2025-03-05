@@ -2,7 +2,6 @@ import multiprocessing
 import multiprocessing.pool
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import Any, Callable
 
 import pandas as pd
 import torch

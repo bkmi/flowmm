@@ -1235,9 +1235,14 @@ def process_one(
                 niggli=False,
                 primitive=False,
             )
+            if safe_crystal_initial.num_sites != crystal.num_sites:
+                # different number of sites in generated vs input, that won't work.
+                result_dict["graph_arrays_initial"] = None
             if safe_crystal_initial.volume < min_safe_crystal_volume:
+                # this would cause the system to hang
                 result_dict["graph_arrays_initial"] = None
             else:
+                # we can use this crystal
                 crystal_initial = build_crystal(
                     crystal_str_initial, niggli=niggli, primitive=primitive
                 )

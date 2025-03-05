@@ -9,6 +9,7 @@ import hydra
 import numpy as np
 import omegaconf
 import pytorch_lightning as pl
+import torch
 import wandb
 from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning import Callback, seed_everything
@@ -128,6 +129,20 @@ def run(cfg: DictConfig) -> None:
     hydra.utils.log.info(f"Instantiating <{get_model}>")
     model = get_model(cfg)
 
+    # Load checkpoint (if exist)
+    ckpts = list(hydra_dir.rglob("*.ckpt"))
+    if len(ckpts) > 0:
+        ckpt_epochs = np.array(
+            [int(ckpt.parts[-1].split("-")[0].split("=")[1]) for ckpt in ckpts]
+        )
+        ckpt_path = str(ckpts[ckpt_epochs.argsort()[-1]])
+        hydra.utils.log.info(f"found checkpoint: {ckpt_path}")
+        hydra.utils.log.info(f"Loading <{ckpt_path}>")
+        checkpoint = torch.load(ckpt_path)
+        model.load_state_dict(checkpoint["state_dict"])
+    else:
+        ckpt_path = None
+
     # Instantiate the callbacks
     callbacks: List[Callback] = build_callbacks(cfg=cfg)
 
@@ -151,18 +166,8 @@ def run(cfg: DictConfig) -> None:
 
     # Store the YaML config separately into the wandb dir
     yaml_conf: str = OmegaConf.to_yaml(cfg=cfg)
-    (hydra_dir / "hparams.yaml").write_text(yaml_conf)
-
-    # Load checkpoint (if exist)
-    ckpts = list(hydra_dir.glob("*.ckpt"))
-    if len(ckpts) > 0:
-        ckpt_epochs = np.array(
-            [int(ckpt.parts[-1].split("-")[0].split("=")[1]) for ckpt in ckpts]
-        )
-        ckpt = str(ckpts[ckpt_epochs.argsort()[-1]])
-        hydra.utils.log.info(f"found checkpoint: {ckpt}")
-    else:
-        ckpt = None
+    if ckpt_path is None:
+        (hydra_dir / "hparams.yaml").write_text(yaml_conf)
 
     hydra.utils.log.info("Instantiating the Trainer")
     trainer = pl.Trainer(
@@ -172,14 +177,14 @@ def run(cfg: DictConfig) -> None:
         deterministic=cfg.train.deterministic,
         check_val_every_n_epoch=cfg.logging.val_check_interval,
         # progress_bar_refresh_rate=cfg.logging.progress_bar_refresh_rate,
-        resume_from_checkpoint=ckpt,
+        # resume_from_checkpoint=ckpt_path,
         **cfg.train.pl_trainer,
     )
 
     log_hyperparameters(trainer=trainer, model=model, cfg=cfg)
 
     hydra.utils.log.info("Starting training!")
-    trainer.fit(model=model, datamodule=datamodule)
+    trainer.fit(model=model, datamodule=datamodule, ckpt_path=ckpt_path)
 
     if do_wandb_log:
         hydra.utils.log.info(
@@ -187,9 +192,9 @@ def run(cfg: DictConfig) -> None:
         )
         wandb_logger.experiment.unwatch(model)
 
-    hydra.utils.log.info("Starting testing!")
     ckpt_path = "last" if cfg.train.pl_trainer.fast_dev_run else "best"
     if cfg.data.datamodule.datasets.test is not None:
+        hydra.utils.log.info("Starting testing!")
         trainer.test(datamodule=datamodule, ckpt_path=ckpt_path)
 
     # Logger closing to release resources/avoid multi-run conflicts
