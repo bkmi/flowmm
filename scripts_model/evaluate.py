@@ -2,19 +2,26 @@
 
 from __future__ import annotations
 
+import multiprocessing
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, Literal, Sequence
 
 import click
+import pandas as pd
 import pytorch_lightning as pl
 import torch
+import wandb
 from pytorch_lightning.callbacks import BasePredictionWriter
 from pytorch_lightning.loggers.wandb import WandbLogger
 from torch_geometric.data import Batch, Data, DataLoader
 
-import wandb
 from diffcsp.script_utils import GenDataset
+from flowmm.common.data_utils import (
+    preprocess_safe_cif_only_timeout,
+    preprocess_timeout,
+)
+from flowmm.data.dataset import ListDataset
 from flowmm.model.eval_utils import (
     CSPDataset,
     get_loaders,
@@ -726,6 +733,117 @@ def predict(
         atom_types = f.read()
     atom_types = eval(atom_types)
     dataset = CSPDataset(atom_types)
+    loader = DataLoader(dataset, batch_size=batch_size)
+
+    target_dir = get_target_dir(checkpoint, subdir)
+
+    directories = [f"pred_{pred_id:02d}"]
+
+    for directory in directories:
+        pred_writer = TorchPredictionWriter(
+            output_dir=target_dir / directory,
+            write_interval="epoch",
+        )
+        # save num_steps
+        (target_dir / directory / "num_steps.txt").write_text(
+            str(cfg.integrate.num_steps)
+        )
+
+        if single_gpu:
+            trainer = pl.Trainer(
+                accelerator="gpu",
+                devices=1,
+                callbacks=[pred_writer],
+            )
+        else:
+            trainer = pl.Trainer(
+                accelerator="gpu",
+                strategy="ddp",
+                devices="auto",
+                callbacks=[pred_writer],
+            )
+        trainer.predict(
+            model,
+            dataloaders=loader,
+            return_predictions=False,
+            ckpt_path=checkpoint,
+        )
+
+
+@cli.command()
+@click.argument("checkpoint", type=Path)
+@click.argument("llm_sample", type=Path)
+@click.option("--batch_size", type=int, default=16384)
+@click.option("--num_steps", type=int, default=None)
+@click.option(
+    "--single_gpu/--multi_gpu",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="use one gpu, not ddp",
+)
+@click.option(
+    "--subdir", type=str, default="", help="subdir name at level of checkpoint"
+)
+@click.option("--pred_id", type=int, default=0, help=r"folder name is pred_{pred_id}")
+@click.option(
+    "--inference_anneal_slope",
+    type=float,
+    default=None,
+)
+@click.option(
+    "--inference_anneal_offset",
+    type=float,
+    default=None,
+)
+@click.option(
+    "--inference_anneal_coords/--no-inference_anneal_coords",
+    is_flag=True,
+    show_default=True,
+    default=True,
+)
+@click.option(
+    "--inference_anneal_lattice/--no-inference_anneal_lattice",
+    is_flag=True,
+    show_default=True,
+    default=False,
+)
+def rfm_from_llm(
+    checkpoint: Path,
+    llm_sample: Path,
+    batch_size: int | None,
+    num_steps: int | None,
+    single_gpu: bool,
+    subdir: str,
+    pred_id: int,
+    inference_anneal_slope: float | None,
+    inference_anneal_offset: float | None,
+    inference_anneal_coords: bool,
+    inference_anneal_lattice: bool,
+) -> None:
+    cfg, model = load_model(checkpoint)
+
+    # update cfg
+    if num_steps is not None:
+        cfg.integrate.num_steps = num_steps
+    if inference_anneal_slope is not None:
+        cfg.integrate.inference_anneal_slope = inference_anneal_slope
+    if inference_anneal_offset is not None:
+        assert (0 <= inference_anneal_offset) and (inference_anneal_offset < 1)
+        cfg.integrate.inference_anneal_offset = inference_anneal_offset
+
+    cfg.integrate.inference_anneal_coords = inference_anneal_coords
+    cfg.integrate.inference_anneal_lattice = inference_anneal_lattice
+
+    df = pd.read_csv(llm_sample)
+    results = preprocess_safe_cif_only_timeout(
+        df=df,
+        num_workers=max([multiprocessing.cpu_count() - 1, 1]),
+        niggli=True,
+        primitive=False,
+        graph_method="crystalnn",
+    )
+    dataset = ListDataset(results)
     loader = DataLoader(dataset, batch_size=batch_size)
 
     target_dir = get_target_dir(checkpoint, subdir)

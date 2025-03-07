@@ -7,11 +7,7 @@ import pandas as pd
 import torch
 from tqdm import trange
 
-from flowmm.common.data_utils import process_one
-
-
-def process_one_star(args):
-    return process_one(*args)
+from flowmm.common.data_utils import preprocess_timeout
 
 
 def main(args: Namespace) -> None:
@@ -22,52 +18,19 @@ def main(args: Namespace) -> None:
     df = df.iloc[args.start_ind : args.end_ind]
     print("length of dataframe portion", len(df))
 
-    with multiprocessing.Pool(processes=args.workers) as pool:
-        argss = [
-            (*elm,)
-            for elm in zip(
-                [df.iloc[idx] for idx in range(len(df))],
-                [args.niggli] * len(df),
-                [args.primitive] * len(df),
-                [args.graph_method] * len(df),
-                [[args.prop]] * len(df),  # the list is actually nested!
-                [args.use_space_group] * len(df),
-                [args.tolerance] * len(df),
-            )
-        ]
-        unordered_results = []
-        work = pool.imap_unordered(func=process_one_star, iterable=argss)
-        for _ in trange(len(argss)):
-            try:
-                unordered_results.append(work.next(timeout=args.timeout))
-            except multiprocessing.TimeoutError:
-                continue
-    # unordered_results = p_umap(
-    #     process_one,
-    #     [df.iloc[idx] for idx in range(len(df))],
-    #     [args.niggli] * len(df),
-    #     [args.primitive] * len(df),
-    #     [args.graph_method] * len(df),
-    #     [[args.prop]] * len(df),  # the list is really nested
-    #     [args.use_space_group] * len(df),
-    #     [args.tolerance] * len(df),
-    #     num_cpus=args.workers,
-    # )
-
-    # filter bad cifs
-    filtered_unordered_results = []
-    for ur in unordered_results:
-        if ur is None:
-            continue
-        elif "graph_arrays_initial" in ur.keys() and ur["graph_arrays_initial"] is None:
-            continue
-        else:
-            filtered_unordered_results.append(ur)
+    filtered_unordered_results = preprocess_timeout(
+        df=df,
+        num_workers=args.workers,
+        niggli=args.niggli,
+        primitive=args.primitive,
+        graph_method=args.graph_method,
+        prop_list=[args.prop],
+        use_space_group=args.use_space_group,
+        tol=args.tolerance,
+        min_safe_crystal_volume=1,
+        timeout=args.timeout,
+    )
     torch.save(filtered_unordered_results, args.save)
-    # mpid_to_results = {result['mp_id']: result for result in filtered_unordered_results}
-    # ordered_results = [mpid_to_results[df.iloc[idx]['material_id']]
-    #                    for idx in range(len(df))]
-    # torch.save(ordered_results, args.save)
 
 
 if __name__ == "__main__":

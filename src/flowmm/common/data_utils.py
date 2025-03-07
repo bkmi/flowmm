@@ -1,6 +1,10 @@
 # modified from diffcsp, which was modified from cdvae
 import copy
 import faulthandler
+import multiprocessing
+import multiprocessing.pool
+from pathlib import Path
+from typing import Any, Dict, List, Literal, Union
 
 import numpy as np
 import pandas as pd
@@ -14,6 +18,7 @@ from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pyxtal import pyxtal
 from sklearn.metrics import accuracy_score, precision_score, recall_score
 from torch_scatter import segment_coo, segment_csr
+from tqdm import trange
 
 faulthandler.enable()
 
@@ -1200,15 +1205,15 @@ def min_distance_sqr_pbc(
 
 
 def process_one(
-    row,
-    niggli,
-    primitive,
-    graph_method,
-    prop_list,
-    use_space_group=False,
-    tol=0.01,
-    min_safe_crystal_volume=1,
-):
+    row: pd.Series,
+    niggli: bool,
+    primitive: bool,
+    graph_method: Literal["crystalnn", "none"],
+    prop_list: List[List[str]],
+    use_space_group: bool = False,
+    tol: float = 0.01,
+    min_safe_crystal_volume: int = 1,
+) -> Dict[str, Any]:
     crystal_str = row["cif"]
     crystal = build_crystal(crystal_str, niggli=niggli, primitive=primitive)
     result_dict = {}
@@ -1256,15 +1261,71 @@ def process_one(
     return result_dict
 
 
+def process_one_star(args):
+    return process_one(*args)
+
+
+def preprocess_timeout(
+    df: pd.DataFrame,
+    num_workers: int,
+    niggli: bool,
+    primitive: bool,
+    graph_method: Literal["crystalnn", "none"],
+    prop_list: List[
+        Literal["energy_per_atom", "formation_energy_per_atom", "heat_ref"]
+    ],
+    use_space_group: bool = False,
+    tol: float = 0.01,
+    min_safe_crystal_volume: int = 1,
+    timeout: int = 180,
+):
+    """returns an unordered result"""
+    with multiprocessing.Pool(processes=num_workers) as pool:
+        argss = [
+            (*elm,)
+            for elm in zip(
+                [df.iloc[idx] for idx in range(len(df))],
+                [niggli] * len(df),
+                [primitive] * len(df),
+                [graph_method] * len(df),
+                [prop_list] * len(df),  # the list is actually nested!
+                [use_space_group] * len(df),
+                [tol] * len(df),
+                [min_safe_crystal_volume] * len(df),
+            )
+        ]
+        unordered_results = []
+        work = pool.imap_unordered(func=process_one_star, iterable=argss)
+        for _ in trange(len(argss)):
+            try:
+                unordered_results.append(work.next(timeout=timeout))
+            except multiprocessing.TimeoutError:
+                continue
+
+    # filter bad cifs
+    filtered_unordered_results = []
+    for ur in unordered_results:
+        if ur is None:
+            continue
+        elif "graph_arrays_initial" in ur.keys() and ur["graph_arrays_initial"] is None:
+            continue
+        else:
+            filtered_unordered_results.append(ur)
+    return filtered_unordered_results
+
+
 def preprocess(
-    input_file,
-    num_workers,
-    niggli,
-    primitive,
-    graph_method,
-    prop_list,
-    use_space_group=False,
-    tol=0.01,
+    input_file: Union[str, Path],
+    num_workers: int,
+    niggli: bool,
+    primitive: bool,
+    graph_method: Literal["crystalnn", "none"],
+    prop_list: List[
+        Literal["energy_per_atom", "formation_energy_per_atom", "heat_ref"]
+    ],
+    use_space_group: bool = False,
+    tol: float = 0.01,
+    min_safe_crystal_volume: int = 1,
 ):
     df = pd.read_csv(input_file)
 
@@ -1277,6 +1338,7 @@ def preprocess(
         [prop_list] * len(df),
         [use_space_group] * len(df),
         [tol] * len(df),
+        [min_safe_crystal_volume] * len(df),
         num_cpus=num_workers,
     )
 
@@ -1328,6 +1390,100 @@ def preprocess_tensors(crystal_array_list, niggli, primitive, graph_method):
     )
     ordered_results = list(sorted(unordered_results, key=lambda x: x["batch_idx"]))
     return ordered_results
+
+
+def process_one_safe_cif_only(
+    row: pd.Series,
+    niggli: bool,
+    primitive: bool,
+    graph_method: Literal["crystalnn", "none"],
+    # prop_list: List[List[str]],
+    # use_space_group: bool = False,
+    # tol: float = 0.01,
+    min_safe_crystal_volume: int = 1,
+) -> Dict[str, Any]:
+    crystal_str = row["cif"]
+    result_dict = {"cif": crystal_str}
+    # when the volume is too small, niggli fails. skip those!
+    try:
+        # if niggli | primitive is true, this can produce hangs & MKL errors when the crystal volume is too small
+        safe_crystal = build_crystal(
+            crystal_str,
+            niggli=False,
+            primitive=False,
+        )
+        if safe_crystal.num_sites != crystal.num_sites:
+            # different number of sites in generated vs input, that won't work.
+            result_dict["graph_arrays"] = None
+        if safe_crystal.volume < min_safe_crystal_volume:
+            # this would cause the system to hang
+            result_dict["graph_arrays"] = None
+        else:
+            # we can use this crystal
+            crystal = build_crystal(crystal_str, niggli=niggli, primitive=primitive)
+            graph_arrays = build_crystal_graph(
+                crystal,
+                graph_method,
+            )
+            result_dict["graph_arrays"] = graph_arrays
+    except:  # ValueError cannot convert NaN to integer, ValueError no structures in cif, scipy.spatial._qhull.QhullError
+        result_dict["graph_arrays"] = None
+        return result_dict
+    result_dict.update(
+        {
+            "mp_id": np.random.randint(0, 10_000_000),
+            "spacegroup": 1,
+            "cif_initial": crystal_str,
+            "graph_arrays_initial": graph_arrays,
+            "energy_per_atom": None,
+        }
+    )
+    return result_dict
+
+
+def process_one_safe_cif_only_star(args):
+    return process_one_safe_cif_only(*args)
+
+
+def preprocess_safe_cif_only_timeout(
+    df: pd.DataFrame,
+    num_workers: int,
+    niggli: bool,
+    primitive: bool,
+    graph_method: Literal["crystalnn", "none"],
+    min_safe_crystal_volume: int = 1,
+    timeout: int = 180,
+):
+    """returns an unordered result"""
+    with multiprocessing.Pool(processes=num_workers) as pool:
+        argss = [
+            (*elm,)
+            for elm in zip(
+                [df.iloc[idx] for idx in range(len(df))],
+                [niggli] * len(df),
+                [primitive] * len(df),
+                [graph_method] * len(df),
+                [min_safe_crystal_volume] * len(df),
+            )
+        ]
+        unordered_results = []
+        work = pool.imap_unordered(func=process_one_safe_cif_only_star, iterable=argss)
+        for _ in trange(len(argss)):
+            try:
+                unordered_results.append(work.next(timeout=timeout))
+            except multiprocessing.TimeoutError:
+                continue
+
+    # filter bad cifs
+    filtered_unordered_results = []
+    for ur in unordered_results:
+        if ur is None:
+            continue
+        elif "graph_arrays_initial" in ur.keys() and ur["graph_arrays_initial"] is None:
+            continue
+        else:
+            filtered_unordered_results.append(ur)
+    return filtered_unordered_results
 
 
 def mard(targets, preds):

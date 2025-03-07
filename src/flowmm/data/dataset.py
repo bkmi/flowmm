@@ -1,5 +1,6 @@
 # modified from diffcsp, which was modified from cdvae
 import os
+from typing import Any
 
 import pandas as pd
 import torch
@@ -8,6 +9,67 @@ from torch.utils.data import Dataset
 from torch_geometric.data import Data
 
 from flowmm.common.data_utils import preprocess, preprocess_tensors
+
+
+class ListDataset(Dataset):
+    def __init__(self, cache: list[Any]) -> None:
+        self.cache = cache
+
+    def __len__(self) -> int:
+        return len(self.cache)
+
+    def __getitem__(self, index):
+        data_dict = self.cached_data[index]
+
+        (
+            frac_coords,
+            atom_types,
+            lengths,
+            angles,
+            edge_indices,
+            to_jimages,
+            num_atoms,
+        ) = data_dict["graph_arrays"]
+
+        # atom_coords are fractional coordinates
+        # edge_index is incremented during batching
+        # https://pytorch-geometric.readthedocs.io/en/latest/notes/batching.html
+        data = Data(
+            frac_coords=torch.Tensor(frac_coords),
+            atom_types=torch.LongTensor(atom_types),
+            lengths=torch.Tensor(lengths).view(1, -1),
+            angles=torch.Tensor(angles).view(1, -1),
+            edge_index=torch.LongTensor(
+                edge_indices.T
+            ).contiguous(),  # shape (2, num_edges)
+            to_jimages=torch.LongTensor(to_jimages),
+            num_atoms=num_atoms,
+            num_bonds=edge_indices.shape[0],
+            num_nodes=num_atoms,  # special attribute used for batching in pytorch geometric
+        )
+
+        if "graph_arrays_initial" in data_dict:
+            (
+                frac_coords_initial,
+                atom_types_initial,
+                lengths_initial,
+                angles_initial,
+                edge_indices_initial,
+                to_jimages_initial,
+                num_atoms_initial,
+            ) = data_dict["graph_arrays_initial"]
+            data.frac_coords_initial = torch.Tensor(frac_coords_initial)
+            data.atom_types_initial = torch.LongTensor(atom_types_initial)
+            data.lengths_initial = torch.Tensor(lengths_initial).view(1, -1)
+            data.angles_initial = torch.Tensor(angles_initial).view(1, -1)
+            data.edge_index_initial = torch.LongTensor(
+                edge_indices_initial.T
+            ).contiguous()
+            data.to_jimages_initial = torch.LongTensor(to_jimages_initial)
+            data.num_atoms_initial = num_atoms_initial
+            data.num_bonds_initial = edge_indices_initial.shape[0]
+            data.num_nodes_initial = num_atoms_initial
+        return data
 
 
 class CrystDataset(Dataset):
