@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Literal, Union
 
 import numpy as np
 import pandas as pd
+import scipy
 import torch
 from p_tqdm import p_umap
 from pymatgen.analysis import local_env
@@ -1255,8 +1256,14 @@ def process_one(
                     crystal_initial, graph_method
                 )
                 result_dict["graph_arrays_initial"] = graph_arrays_initial
-        except:  # ValueError cannot convert NaN to integer, ValueError no structures in cif, scipy.spatial._qhull.QhullError
+        except (
+            ValueError
+        ):  # ValueError cannot convert NaN to integer, ValueError no structures in cif
             result_dict["graph_arrays_initial"] = None
+            return result_dict
+        except scipy.spatial._qhull.QhullError:
+            result_dict["graph_arrays"] = None
+            return result_dict
 
     return result_dict
 
@@ -1412,9 +1419,6 @@ def process_one_safe_cif_only(
             niggli=False,
             primitive=False,
         )
-        if safe_crystal.num_sites != crystal.num_sites:
-            # different number of sites in generated vs input, that won't work.
-            result_dict["graph_arrays"] = None
         if safe_crystal.volume < min_safe_crystal_volume:
             # this would cause the system to hang
             result_dict["graph_arrays"] = None
@@ -1426,7 +1430,12 @@ def process_one_safe_cif_only(
                 graph_method,
             )
             result_dict["graph_arrays"] = graph_arrays
-    except:  # ValueError cannot convert NaN to integer, ValueError no structures in cif, scipy.spatial._qhull.QhullError
+    except (
+        ValueError
+    ):  # ValueError cannot convert NaN to integer, ValueError no structures in cif
+        result_dict["graph_arrays"] = None
+        return result_dict
+    except scipy.spatial._qhull.QhullError:
         result_dict["graph_arrays"] = None
         return result_dict
     result_dict.update(
@@ -1455,6 +1464,7 @@ def preprocess_safe_cif_only_timeout(
     timeout: int = 180,
 ):
     """returns an unordered result"""
+    # process_one_safe_cif_only_star((df.iloc[0], True, False, "crystalnn", 1.0))
     with multiprocessing.Pool(processes=num_workers) as pool:
         argss = [
             (*elm,)

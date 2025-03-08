@@ -35,7 +35,12 @@ from flowmm.old_eval.lattice_metrics import compute_lattice_metrics
 from flowmm.old_eval.reconstruction_metrics import compute_reconstruction_metrics
 
 TASKS_TYPE = Literal[
-    "reconstruct", "recon_trajectory", "generate", "gen_trajectory", "pred", "rfm-from-llm"
+    "reconstruct",
+    "recon_trajectory",
+    "generate",
+    "gen_trajectory",
+    "pred",
+    "rfm-from-llm",
 ]
 TASKS = deepcopy(TASKS_TYPE.__args__)
 STAGE_TYPE = Literal["train", "val", "test"]
@@ -782,7 +787,12 @@ def predict(
 @click.option(
     "--subdir", type=str, default="", help="subdir name at level of checkpoint"
 )
-@click.option("--rfm_from_llm_id", type=int, default=0, help=r"folder name is rfm-from-llm_{pred_id}")
+@click.option(
+    "--rfm_from_llm_id",
+    type=int,
+    default=0,
+    help=r"folder name is rfm-from-llm_{pred_id}",
+)
 @click.option(
     "--inference_anneal_slope",
     type=float,
@@ -818,13 +828,12 @@ def rfm_from_llm(
     inference_anneal_coords: bool,
     inference_anneal_lattice: bool,
 ) -> None:
-    
+    cfg, model = load_model(checkpoint)
+
     if "null" not in cfg.model.manifold_getter.atom_type_manifold:
         raise ValueError(
             f"you cannot do rfm-from-llm with an unconditional atom_type_manifold {cfg.model.manifold_getter.atom_type_manifold=}"
         )
-
-    cfg, model = load_model(checkpoint)
 
     # update cfg
     if num_steps is not None:

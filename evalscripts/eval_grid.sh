@@ -18,6 +18,9 @@ python /home/bkmi/flowmm/evalscripts/highestepochfromhydrasweep.py ${root} | whi
 
     llm_sample=data/samples_1.csv  # TODO, num ranks?
 
+    # EXAMPLE
+    # python scripts_model/evaluate.py rfm-from-llm /home/bkmi/flowmm/results/2025.02.26/065840/0/checkpoints/epoch=79-step=806240.ckpt /home/bkmi/flowmm/data/anuroop_llm_mp20_alex/samples_t1.5/samples_1.csv
+
     CMD_GEN="python scripts_model/evaluate.py \
         rfm-from-llm \
         ${base} \

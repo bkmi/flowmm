@@ -19,7 +19,7 @@ class ListDataset(Dataset):
         return len(self.cache)
 
     def __getitem__(self, index):
-        data_dict = self.cached_data[index]
+        data_dict = self.cache[index]
 
         (
             frac_coords,
