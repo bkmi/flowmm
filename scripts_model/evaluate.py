@@ -17,10 +17,7 @@ from pytorch_lightning.loggers.wandb import WandbLogger
 from torch_geometric.data import Batch, Data, DataLoader
 
 from diffcsp.script_utils import GenDataset
-from flowmm.common.data_utils import (
-    preprocess_safe_cif_only_timeout,
-    preprocess_timeout,
-)
+from flowmm.common.data_utils import preprocess_safe_cif_only_timeout
 from flowmm.data.dataset import ListDataset
 from flowmm.model.eval_utils import (
     CSPDataset,
@@ -38,7 +35,7 @@ from flowmm.old_eval.lattice_metrics import compute_lattice_metrics
 from flowmm.old_eval.reconstruction_metrics import compute_reconstruction_metrics
 
 TASKS_TYPE = Literal[
-    "reconstruct", "recon_trajectory", "generate", "gen_trajectory", "pred"
+    "reconstruct", "recon_trajectory", "generate", "gen_trajectory", "pred", "rfm-from-llm"
 ]
 TASKS = deepcopy(TASKS_TYPE.__args__)
 STAGE_TYPE = Literal["train", "val", "test"]
@@ -785,7 +782,7 @@ def predict(
 @click.option(
     "--subdir", type=str, default="", help="subdir name at level of checkpoint"
 )
-@click.option("--pred_id", type=int, default=0, help=r"folder name is pred_{pred_id}")
+@click.option("--rfm_from_llm_id", type=int, default=0, help=r"folder name is rfm-from-llm_{pred_id}")
 @click.option(
     "--inference_anneal_slope",
     type=float,
@@ -815,12 +812,18 @@ def rfm_from_llm(
     num_steps: int | None,
     single_gpu: bool,
     subdir: str,
-    pred_id: int,
+    rfm_from_llm_id: int,
     inference_anneal_slope: float | None,
     inference_anneal_offset: float | None,
     inference_anneal_coords: bool,
     inference_anneal_lattice: bool,
 ) -> None:
+    
+    if "null" not in cfg.model.manifold_getter.atom_type_manifold:
+        raise ValueError(
+            f"you cannot do rfm-from-llm with an unconditional atom_type_manifold {cfg.model.manifold_getter.atom_type_manifold=}"
+        )
+
     cfg, model = load_model(checkpoint)
 
     # update cfg
@@ -848,7 +851,7 @@ def rfm_from_llm(
 
     target_dir = get_target_dir(checkpoint, subdir)
 
-    directories = [f"pred_{pred_id:02d}"]
+    directories = [f"rfm-from-llm_{rfm_from_llm_id:02d}"]
 
     for directory in directories:
         pred_writer = TorchPredictionWriter(
@@ -1019,8 +1022,9 @@ def consolidate(
     g = _consolidate(target_dir, "generate")
     gt = _consolidate(target_dir, "gen_trajectory")
     p = _consolidate(target_dir, "pred")
+    llm = _consolidate(target_dir, "rfm-from-llm")
 
-    consolidations = {k: v for k, v in zip(TASKS, [r, rt, g, gt, p])}
+    consolidations = {k: v for k, v in zip(TASKS, [r, rt, g, gt, p, llm])}
     did_consolidate = {k: v != None for k, v in consolidations.items()}
 
     if any(did_consolidate.values()):

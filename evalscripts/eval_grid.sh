@@ -16,7 +16,25 @@ python /home/bkmi/flowmm/evalscripts/highestepochfromhydrasweep.py ${root} | whi
     stem=${stem%.*}  # retain part before the period
     subdir="stem=${stem}_numsteps=${numsteps}"
 
+    llm_sample=data/samples_1.csv  # TODO, num ranks?
 
+    CMD_GEN="python scripts_model/evaluate.py \
+        rfm-from-llm \
+        ${base} \
+        ${llm_sample} \
+        --subdir ${subdir} \
+        --batch_size 1_000 \
+        --rfm_from_llm_id ${rank} \
+        --num_steps ${numsteps}"
+    CMD_CONS="python scripts_model/evaluate.py \
+        consolidate ${base} \
+        --subdir ${subdir}"
+    CMD_MET="python scripts_model/evaluate.py old_eval_metrics ${base} --subdir ${subdir}"
+
+    CMD="$CMD_GEN && $CMD_CONS && $CMD_MET"
+    echo $CMD
+
+    python scripts_model/evaluate.py rfm-from-llm /Users/bkmi/Documents/flowmm/0/checkpoints/epoch=69-step=705460.ckpt /Users/bkmi/Documents/flowmm/data/samples_1.csv
 done
 
 
