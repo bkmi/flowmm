@@ -1,5 +1,3 @@
-import multiprocessing
-import multiprocessing.pool
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 

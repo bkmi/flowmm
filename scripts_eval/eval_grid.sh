@@ -8,10 +8,9 @@ CMDS_FILE=/fsx-open-catalyst/bkmi/flowmm/evalscripts/CMDS_EVAL.sh
 root=/fsx-open-catalyst/bkmi/flowmm/results/2025.02.26/065840
 
 llm_sample=/fsx-open-catalyst/bkmi/flowmm/data/samples_t1.5_merged.csv
+numsteps=250
 
 /home/bkmi/micromamba/envs/flowmm/bin/python /fsx-open-catalyst/bkmi/flowmm/evalscripts/highestepochfromhydrasweep.py ${root} | while read -r ckpt; do
-    numsteps=250
-
     # create directory for evals
     stem=${ckpt##*/}  # retain part after the last slash
     stem=${stem%.*}  # retain part before the period
