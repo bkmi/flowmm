@@ -21,6 +21,8 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score
 from torch_scatter import segment_coo, segment_csr
 from tqdm import trange
 
+from flowmm.data import NUM_ATOMIC_TYPES
+
 faulthandler.enable()
 
 
@@ -1255,7 +1257,12 @@ def process_one(
                 graph_arrays_initial = build_crystal_graph(
                     crystal_initial, graph_method
                 )
-                result_dict["graph_arrays_initial"] = graph_arrays_initial
+                atom_types = graph_arrays_initial[1]
+                if np.any(atom_types > NUM_ATOMIC_TYPES) or np.isnan(atom_types).any():
+                    # unrealistic atom types
+                    result_dict["graph_arrays_initial"] = None
+                else:
+                    result_dict["graph_arrays_initial"] = graph_arrays_initial
         except (
             ValueError
         ):  # ValueError cannot convert NaN to integer, ValueError no structures in cif
@@ -1429,7 +1436,12 @@ def process_one_safe_cif_only(
                 crystal,
                 graph_method,
             )
-            result_dict["graph_arrays"] = graph_arrays
+            atom_types = graph_arrays[1]
+            if np.any(atom_types > NUM_ATOMIC_TYPES) or np.isnan(atom_types).any():
+                # unrealistic atom types
+                result_dict["graph_arrays"] = None
+            else:
+                result_dict["graph_arrays"] = graph_arrays
     except (
         ValueError
     ):  # ValueError cannot convert NaN to integer, ValueError no structures in cif
@@ -1440,10 +1452,10 @@ def process_one_safe_cif_only(
         return result_dict
     result_dict.update(
         {
-            "mp_id": np.random.randint(0, 10_000_000),
+            "mp_id": np.random.randint(0, 10_000_000_000),
             "spacegroup": 1,
             "cif_initial": crystal_str,
-            "graph_arrays_initial": graph_arrays,
+            "graph_arrays_initial": result_dict["graph_arrays"],
             "energy_per_atom": None,
         }
     )
