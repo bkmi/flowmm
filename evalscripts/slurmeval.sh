@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #SBATCH --cpus-per-task=10
-#SBATCH --error=hps/slurm/eval-%A_%a.err
-#SBATCH --output=hps/slurm/eval-%A_%a.out
+#SBATCH --error=slurm/eval-%A_%a.err
+#SBATCH --output=slurm/eval-%A_%a.out
 #SBATCH --gpus-per-node=1
 #SBATCH --job-name=eval_rfm
 #SBATCH --mem=10GB
@@ -13,9 +13,9 @@
 #SBATCH --signal=USR2@90
 #SBATCH --time=7200
 
-export PROJECT_ROOT="/private/home/bmwood/ocp_results/rfm_gen/solids"
-export HYDRA_JOBS="/private/home/bmwood/ocp_results/rfm_gen/solids"
-export WANDB_DIR="/private/home/bmwood/ocp_results/rfm_gen/solids"
+export PROJECT_ROOT="/fsx-open-catalyst/bkmi/flowmm"
+export HYDRA_JOBS="/fsx-open-catalyst/bkmi/flowmm"
+export WABDB_DIR="/fsx-open-catalyst/bkmi/flowmm"
 
 CMD=`cat $CMDS_FILE | head -n ${SLURM_ARRAY_TASK_ID} | tail -n 1`
 echo $CMD
