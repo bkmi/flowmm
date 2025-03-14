@@ -56,7 +56,7 @@ max_length=$(echo "l($max_length)/l(10)" | bc -l)
 max_length=$(echo "scale=0; $max_length/1" | bc -l)
 max_length=$((max_length + 1))
 
-CMDS_FILE=/home/bkmi/flowmm/data/llm_osc/CMDS_PREPROCESS.sh
+CMDS_FILE=/fsx-open-catalyst/bkmi/flowmm/data/llm_osc/CMDS_PREPROCESS.sh
 
 for ((i=0; i<${#inds[@]}-1; i++)); do
     start=${inds[i]}
@@ -67,9 +67,9 @@ for ((i=0; i<${#inds[@]}-1; i++)); do
 
     # echo "Processing chunk: [$start, $end]"
     CMD="/home/bkmi/micromamba/envs/flowmm/bin/python \
-        /home/bkmi/flowmm/src/flowmm/common/manual_preprocess.py \
-        /home/bkmi/flowmm/data/llm_osc/train_t1.5.csv \
-        /home/bkmi/flowmm/data/llm_osc/train_t1.5_${padded_index}.pkl \
+        /fsx-open-catalyst/bkmi/flowmm/src/flowmm/common/manual_preprocess.py \
+        /fsx-open-catalyst/bkmi/flowmm/data/llm_osc/train_t1.5.csv \
+        /fsx-open-catalyst/bkmi/flowmm/data/llm_osc/train_t1.5_${padded_index}.pkl \
         --workers 70 \
         --start_ind ${start} \
         --end_ind ${end}"
@@ -78,12 +78,12 @@ done > $CMDS_FILE
 
 # validation
 CMD="/home/bkmi/micromamba/envs/flowmm/bin/python \
-    /home/bkmi/flowmm/src/flowmm/common/manual_preprocess.py \
-    /home/bkmi/flowmm/data/llm_osc/val_t1.5.csv \
-    /home/bkmi/flowmm/data/llm_osc/val_t1.5.pkl \
+    /fsx-open-catalyst/bkmi/flowmm/src/flowmm/common/manual_preprocess.py \
+    /fsx-open-catalyst/bkmi/flowmm/data/llm_osc/val_t1.5.csv \
+    /fsx-open-catalyst/bkmi/flowmm/data/llm_osc/val_t1.5.pkl \
     --workers 70"
 echo $CMD >> $CMDS_FILE
 
 NUM_JOBS=$(wc -l < $CMDS_FILE)
 echo Submitting $NUM_JOBS jobs
-CMDS_FILE=$CMDS_FILE sbatch --requeue --export CMDS_FILE --array=1-"$NUM_JOBS" /home/bkmi/flowmm/data/llm_osc/eval_slurm.sh
+CMDS_FILE=$CMDS_FILE sbatch --requeue --export CMDS_FILE --array=1-"$NUM_JOBS" /fsx-open-catalyst/bkmi/flowmm/data/llm_osc/eval_slurm.sh

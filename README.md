@@ -90,7 +90,7 @@ Discussion about evaluation is limited to FlowMM. `scripts_model/evaluate.py` us
 
 ### Conditional Evaluation - Crystal Structure Prediction - Reconstruction
 
-These commands will:  
+These commands will:
 1. reconstruct the `test` set
 2. consolidate the results into a single torch pickle with the correct format
 3. compute the match rate and root mean square error, compared to the `test` set
@@ -135,7 +135,7 @@ Taking the generations from the previous step, we can prerelax them using [CHGNe
 If you want to use slurm, the user must then provide `YOUR_SLURM_PARTITION`.
 
 ```bash
-# get the path to the structures 
+# get the path to the structures
 eval_for_dft_pt=$(python scripts_model/evaluate.py consolidate "${ckpt}" --subdir "${subdir}" --path_eval_pt eval_for_dft.pt | tail -n 1)
 
 # get the eval_for_dft_json
@@ -158,7 +158,7 @@ We can continue by doing density functional theory (DFT) with [VASP](https://www
 The user must provide `PATH_TO_YOUR_PSEUDOPOTENTIALS`, which requires a VASP license.
 
 ```bash
-export PMG_VASP_PSP_DIR=PATH_TO_YOUR_PSEUDOPOTENTIALS 
+export PMG_VASP_PSP_DIR=PATH_TO_YOUR_PSEUDOPOTENTIALS
 
 # create the folder to hold the dft files
 dft_folder="${parent}/dft"
@@ -217,7 +217,7 @@ python scripts_analysis/novelty.py "${eval_for_dft_json}" "${sun_json}" --ehulls
 
 The FlowLLM model combines RFM and [CrystalLLM](https://arxiv.org/abs/2402.04379) by using the LLM as a learned base distribution for the RFM model.
 
-To train the FlowLLM from scratch, you need to train the CrystalLLM model first: Get the CrystalLLM codebase from [https://github.com/facebookresearch/crystal-text-llm](https://github.com/facebookresearch/crystal-text-llm). Follow the instructions in that repo to fine-tune a LLaMA model on the MP-20 dataset. After training, generate a large number of samples from that model and create a dataset to train the RFM model. 
+To train the FlowLLM from scratch, you need to train the CrystalLLM model first: Get the CrystalLLM codebase from [https://github.com/facebookresearch/crystal-text-llm](https://github.com/facebookresearch/crystal-text-llm). Follow the instructions in that repo to fine-tune a LLaMA model on the MP-20 dataset. After training, generate a large number of samples from that model and create a dataset to train the RFM model.
 For convenience, a subset of the data used in the FlowLLM paper is available in: `data/mp20_llama/`.
 
 Once this training data has been created, the FlowLLM model can be trained just like FlowMM with Conditional Training. Be sure to set `base_distribution_from_data=True` to read the initial samples from the dataset file.
@@ -226,6 +226,28 @@ Once this training data has been created, the FlowLLM model can be trained just 
 python scripts_model/run.py data=mp20_llama model=null_params base_distribution_from_data=True
 ```
 
+## LLM Scripts
+
+```
+scripts_model/evaluate.py rfm-from-llm  -   convert unconstrained llm to rfm output
+```
+
+### `scripts_dataprep`
+```
+create_sample_data.py           -   script from anuroop, merge llm training data with cifs used for LLM training (not updated)
+manual_preprocess.py            -   take csvs from LLM training data and produce pickles
+combine_manual_preprocess.py    -   take pickles and produce a single pickle for RFM training
+merge_llm_data.py               -   take several unconstrained generation csvs and produce a single csv for `evaluate.py rfm-from-llm`
+```
+
+### `scripts_eval`
+First train using a hydra sweep.
+
+```
+highestepochfromhydrasweep.py   -   find the highest epochs from a sweep folder
+eval_grid.sh                    -   evaluate every highest epoch checkpoint from a sweep folder
+slurmeval.sh                    -   for job submission
+```
 
 # Citation
 

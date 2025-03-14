@@ -29,6 +29,10 @@ numsteps=250
         consolidate \
         ${ckpt} \
         --subdir ${subdir}"
+    # TODO
+    # CMD_CSV=
+    # CMD_RELAX=/home/bkmi/micromamba/envs/fairchem_flowmm/bin/python
+    # CMD_HULL=
     CMD="$CMD_GEN && $CMD_CONS"
     echo $CMD
 done > $CMDS_FILE
