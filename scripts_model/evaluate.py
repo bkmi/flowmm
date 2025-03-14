@@ -847,14 +847,22 @@ def rfm_from_llm(
     cfg.integrate.inference_anneal_coords = inference_anneal_coords
     cfg.integrate.inference_anneal_lattice = inference_anneal_lattice
 
-    df = pd.read_csv(llm_sample)
-    results = preprocess_safe_cif_only_timeout(
-        df=df,
-        num_workers=max([multiprocessing.cpu_count() - 1, 1]),
-        niggli=True,
-        primitive=False,
-        graph_method="crystalnn",
-    )
+    pickle_path = Path(llm_sample).parent / f"{Path(llm_sample).stem}.pt"
+    if pickle_path.exists():
+        results = torch.load(pickle_path)
+    elif ".csv" in str(llm_sample):
+        df = pd.read_csv(llm_sample)
+        results = preprocess_safe_cif_only_timeout(
+            df=df,
+            num_workers=max([multiprocessing.cpu_count() - 1, 1]),
+            niggli=True,
+            primitive=False,
+            graph_method="crystalnn",
+        )
+        torch.save(results, pickle_path)
+    else:
+        ValueError("path no found")
+
     dataset = ListDataset(results)
     loader = DataLoader(dataset, batch_size=batch_size)
 

@@ -1,15 +1,16 @@
 #!/bin/bash
 
-#SBATCH --cpus-per-task=10
+#SBATCH --cpus-per-task=80
 #SBATCH --error=slurm/eval-%A_%a.err
 #SBATCH --output=slurm/eval-%A_%a.out
-#SBATCH --gpus-per-node=1
+#SBATCH --gpus-per-node=8
 #SBATCH --job-name=eval_rfm
-#SBATCH --mem=10GB
+# #SBATCH --mem=40GB
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=8
+#SBATCH --ntasks-per-node=1
 #SBATCH --open-mode=append
-#SBATCH --partition=ocp
+#SBATCH --account=ocp
+#SBATCH --qos=ami_shared
 #SBATCH --signal=USR2@90
 #SBATCH --time=7200
 
