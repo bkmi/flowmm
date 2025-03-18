@@ -7,6 +7,8 @@ export WABDB_DIR="/fsx-open-catalyst/bkmi/flowmm"
 CMDS_FILE=/fsx-open-catalyst/bkmi/flowmm/evalscripts/CMDS_EVAL.sh
 root=/fsx-open-catalyst/bkmi/flowmm/results/2025.02.26/065840
 
+# created this file using...
+# python scripts_dataprep/merge_llm_data.py data/llm_mp20_alex_abridged/uncond_llm_t1.5_merged.csv --csvs data/anuroop_llm_mp20_alex/samples_t1.5/*
 llm_sample=/fsx-open-catalyst/bkmi/flowmm/data/samples_t1.5_merged.csv
 numsteps=250
 

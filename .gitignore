@@ -32,6 +32,9 @@ output/
 data/anuroop_llm_mp20_alex
 data/anuroop_llm_osc
 **/CMDS_PREPROCESS.sh
+lightning_logs
+fairchem
+**/CMDS_EVAL.sh
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -67,7 +67,7 @@ for ((i=0; i<${#inds[@]}-1; i++)); do
 
     # echo "Processing chunk: [$start, $end]"
     CMD="/home/bkmi/micromamba/envs/flowmm/bin/python \
-        /fsx-open-catalyst/bkmi/flowmm/src/flowmm/common/manual_preprocess.py \
+        /fsx-open-catalyst/bkmi/flowmm/scripts_dataprep/manual_preprocess.py \
         /fsx-open-catalyst/bkmi/flowmm/data/llm_osc/train_t1.5.csv \
         /fsx-open-catalyst/bkmi/flowmm/data/llm_osc/train_t1.5_${padded_index}.pkl \
         --workers 70 \
@@ -78,7 +78,7 @@ done > $CMDS_FILE
 
 # validation
 CMD="/home/bkmi/micromamba/envs/flowmm/bin/python \
-    /fsx-open-catalyst/bkmi/flowmm/src/flowmm/common/manual_preprocess.py \
+    /fsx-open-catalyst/bkmi/flowmm/scripts_dataprep/manual_preprocess.py \
     /fsx-open-catalyst/bkmi/flowmm/data/llm_osc/val_t1.5.csv \
     /fsx-open-catalyst/bkmi/flowmm/data/llm_osc/val_t1.5.pkl \
     --workers 70"
