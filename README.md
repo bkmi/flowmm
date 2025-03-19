@@ -229,7 +229,7 @@ python scripts_model/run.py data=mp20_llama model=null_params base_distribution_
 ## LLM Scripts
 
 ```
-scripts_model/evaluate.py rfm-from-llm  -   convert unconstrained llm to rfm output
+scripts_model/evaluate.py rfm-from-llm  -   transform unconstrained llm samples to rfm output
 ```
 
 ### `scripts_dataprep`
@@ -244,8 +244,10 @@ merge_llm_data.py               -   take several unconstrained generation csvs a
 First train using a hydra sweep.
 
 ```
+collected_to_cif.py             -   takes rfm outputs and creates a dataframe of cifs
 highestepochfromhydrasweep.py   -   find the highest epochs from a sweep folder
 eval_grid.sh                    -   evaluate every highest epoch checkpoint from a sweep folder
+prerelax_omat.py                -   use omat potential to prerelax
 slurmeval.sh                    -   for job submission
 ```
 
