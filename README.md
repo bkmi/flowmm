@@ -247,7 +247,7 @@ First train using a hydra sweep.
 collected_to_cif.py             -   takes rfm outputs and creates a dataframe of cifs
 highestepochfromhydrasweep.py   -   find the highest epochs from a sweep folder
 eval_grid.sh                    -   evaluate every highest epoch checkpoint from a sweep folder
-prerelax_omat.py                -   use omat potential to prerelax
+prerelax_omat.py                -   use omat potential to prerelax (requires a fairchem environment to run)
 slurmeval.sh                    -   for job submission
 ```
 

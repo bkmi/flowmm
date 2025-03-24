@@ -103,6 +103,7 @@ class CrystDataset(Dataset):
         self.use_pos_index = use_pos_index
         self.tolerance = tolerance
 
+        print("preprocess: ", save_path)
         self.preprocess(save_path, preprocess_workers, prop)
 
     def preprocess(self, save_path, preprocess_workers, prop):
